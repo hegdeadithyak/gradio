@@ -83,6 +83,7 @@ class Video(Component):
         show_download_button: bool | None = None,
         min_length: int | None = None,
         max_length: int | None = None,
+        loop: bool = True,
     ):
         """
         Parameters:
@@ -128,6 +129,7 @@ class Video(Component):
                 )
         self.format = format
         self.autoplay = autoplay
+        self.loop = loop
         self.height = height
         self.width = width
         self.mirror_webcam = mirror_webcam
@@ -172,7 +174,6 @@ class Video(Component):
         uploaded_format = file_name.suffix.replace(".", "")
         needs_formatting = self.format is not None and uploaded_format != self.format
         flip = self.sources == ["webcam"] and self.mirror_webcam
-
         if self.min_length is not None or self.max_length is not None:
             # With this if-clause, avoid unnecessary execution of `processing_utils.get_video_length`.
             # This is necessary for the Wasm-mode, because it uses ffprobe, which is not available in the browser.
@@ -186,10 +187,12 @@ class Video(Component):
                     f"Video is too long, and must be at most {self.max_length} seconds"
                 )
 
-        if needs_formatting or flip:
+        if needs_formatting or flip or self.loop is not None:
             format = f".{self.format if needs_formatting else uploaded_format}"
             output_options = ["-vf", "hflip", "-c:a", "copy"] if flip else []
             output_options += ["-an"] if not self.include_audio else []
+            if self.loop is not None:
+                output_options.extend(["-loop", str(self.loop)])
             flip_suffix = "_flip" if flip else ""
             output_file_name = str(
                 file_name.with_name(f"{file_name.stem}{flip_suffix}{format}")
